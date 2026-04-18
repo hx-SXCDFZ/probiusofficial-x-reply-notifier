@@ -2,12 +2,14 @@
 
 ## Background
 
-The project monitors a target X account's `with_replies` page and alerts the
-operator when new authored posts or replies appear.
+The project monitors `@ProbiusOfficial`'s X `with_replies` page by default and
+alerts the operator when new authored posts or replies appear. The monitored
+account remains configurable through `TARGET_USERNAME`.
 
 ## Goals
 
-- Monitor `https://x.com/<username>/with_replies` through a real Chrome browser.
+- Monitor `https://x.com/ProbiusOfficial/with_replies` through a real Chrome browser by default.
+- Allow users to change `TARGET_USERNAME` to monitor another account.
 - Extract recent authored post IDs, URLs, timestamps, and text.
 - Persist local state to avoid duplicate alerts across restarts.
 - Alert locally and optionally push notifications to Feishu or DingTalk.

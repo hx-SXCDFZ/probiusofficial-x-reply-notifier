@@ -1,14 +1,20 @@
 # Twitter Account Update Notifier Bot
 
-A lightweight Python monitor for `https://x.com/<username>/with_replies`.
+A ProbiusOfficial-focused Python monitor for
+`https://x.com/ProbiusOfficial/with_replies`.
 
-It opens X in Chrome through Selenium, tracks recent posts/replies from a target
-account, stores seen post IDs locally, alerts in the terminal, plays a local beep,
-and can optionally send Feishu or DingTalk webhook notifications.
+It opens X in Chrome through Selenium, tracks recent posts/replies from
+`@ProbiusOfficial` by default, stores seen post IDs locally, alerts in the
+terminal, plays a local beep, and can optionally send Feishu or DingTalk webhook
+notifications.
+
+The monitored account is still configurable. Change `TARGET_USERNAME` in `.env`
+to monitor any other X/Twitter account.
 
 ## Features
 
-- Watches a target X account's `with_replies` timeline.
+- Watches `@ProbiusOfficial`'s `with_replies` timeline by default.
+- Can be repointed to another X/Twitter account with one `.env` change.
 - Tracks multiple recent post IDs to reduce duplicate alerts after restarts.
 - Rebuilds the Chrome driver after recoverable browser failures.
 - Uses a temporary writable Chrome profile by default.
@@ -42,14 +48,37 @@ On macOS or Linux:
 cp .env.example .env
 ```
 
-Edit `.env` and set at least:
+By default, `.env.example` monitors `@ProbiusOfficial`:
 
 ```dotenv
-TARGET_USERNAME=jack
+TARGET_USERNAME=ProbiusOfficial
 ```
 
 Do not commit `.env`; it may contain local paths, login profile locations, and
 webhook secrets.
+
+## Monitor Another Account
+
+This project defaults to `@ProbiusOfficial`, but it is not hardcoded to that
+account. To monitor another account:
+
+1. Open `.env`.
+2. Replace `TARGET_USERNAME` with the account username, with or without `@`.
+3. Restart the monitor.
+
+Examples:
+
+```dotenv
+TARGET_USERNAME=elonmusk
+```
+
+```dotenv
+TARGET_USERNAME=@OpenAI
+```
+
+The script normalizes the leading `@`, so both forms work. After changing the
+target, delete `state/last_seen.json` if you want the new account to start with a
+fresh baseline instead of reusing state from the previous target.
 
 ## Run
 
@@ -68,7 +97,7 @@ Create `.env` first:
 copy .env.example .env
 ```
 
-Edit `.env` and set `TARGET_USERNAME`.
+Edit `.env` if you want to monitor an account other than `@ProbiusOfficial`.
 
 Build and start the container:
 
