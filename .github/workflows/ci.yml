@@ -34,4 +34,4 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build Docker image
-        run: docker build -t twitter-account-update-notifier-bot:ci .
+        run: docker build -t probiusofficial-x-reply-notifier:ci .

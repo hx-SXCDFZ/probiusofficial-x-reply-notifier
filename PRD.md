@@ -1,4 +1,4 @@
-# Product Requirements: Twitter Account Update Notifier Bot
+# Product Requirements: ProbiusOfficial X Reply Notifier
 
 ## Background
 

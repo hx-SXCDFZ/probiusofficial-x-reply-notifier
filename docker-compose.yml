@@ -1,3 +1,5 @@
+name: probiusofficial-x-reply-notifier
+
 services:
   notifier:
     build:

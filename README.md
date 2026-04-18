@@ -1,4 +1,4 @@
-# Twitter Account Update Notifier Bot
+# ProbiusOfficial X Reply Notifier
 
 A ProbiusOfficial-focused Python monitor for
 `https://x.com/ProbiusOfficial/with_replies`.
