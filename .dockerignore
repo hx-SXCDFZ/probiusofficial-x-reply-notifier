@@ -13,6 +13,7 @@ __pycache__/
 
 logs/
 state/
+diagnostics/
 chrome_profile/
 .wdm/
 .wdm_local/

@@ -20,6 +20,7 @@ env/
 # Runtime state and logs
 logs/
 state/
+diagnostics/
 *.log
 
 # Browser and driver caches

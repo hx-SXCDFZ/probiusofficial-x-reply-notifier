@@ -89,10 +89,10 @@ docker compose down
 ```
 
 The compose setup runs Chromium in headless mode and persists runtime files to
-local `state/` and `logs/` folders. The `.env` file is passed at runtime and is
-not copied into the Docker image. Local host Chrome profile settings are cleared
-by the default compose file because Windows or macOS Chrome profile paths do not
-work inside the Linux container.
+local `state/`, `logs/`, and `diagnostics/` folders. The `.env` file is passed
+at runtime and is not copied into the Docker image. Local host Chrome profile
+settings are cleared by the default compose file because Windows or macOS Chrome
+profile paths do not work inside the Linux container.
 
 By default, Docker build and runtime traffic use the host machine proxy at:
 
@@ -116,6 +116,9 @@ All configuration is read from `.env`.
 | `RECENT_POST_COUNT` | `5` | Number of recent authored posts to track. |
 | `STATE_FILE` | `state/last_seen.json` | Local state file path. |
 | `LOG_FILE` | `logs/monitor.log` | Local log file path. |
+| `DIAGNOSTICS_DIR` | `diagnostics` | Directory for browser diagnostics when scraping fails. |
+| `DIAGNOSTICS_INTERVAL_SECONDS` | `300` | Minimum seconds between diagnostic captures. Use `0` to capture every recoverable browser failure. |
+| `DIAGNOSTICS_HTML_MAX_CHARS` | `500000` | Maximum page-source characters saved per diagnostic HTML file. Use `0` to save full HTML. |
 | `ENABLE_BEEP` | `true` | Enables local sound alerts. |
 | `CHROME_BINARY` | empty | Optional Chrome or Chromium executable path. Docker uses `/usr/bin/chromium`. |
 | `HOST_PROXY_URL` | `http://host.docker.internal:7890` | Docker compose proxy URL for image build, Python HTTP traffic, and Chromium. |
@@ -142,6 +145,33 @@ point `CHROME_USER_DATA_DIR` at that mounted path.
 
 Use this project responsibly and make sure your usage complies with X's terms and
 applicable laws.
+
+## Troubleshooting
+
+If the monitor repeatedly logs `Recoverable browser error`, check the latest files
+in `diagnostics/`. Each diagnostic capture may include:
+
+- a `.json` metadata file with the current URL, page title, target URL, and saved file paths
+- a `.html` page-source snapshot, truncated by `DIAGNOSTICS_HTML_MAX_CHARS`
+- a `.png` screenshot when Chromium can capture one
+
+Common causes are:
+
+- X is showing a login wall or anti-automation page
+- the target account has no visible posts in the current session
+- the page structure changed and `article[data-testid="tweet"]` no longer matches
+- a container is running headless without a logged-in Linux Chrome profile
+
+Docker headless mode is convenient for deployment, but it is not a guaranteed
+replacement for a logged-in desktop Chrome session. If X requires login, first
+verify the monitor locally with a logged-in Chrome profile, then mount an
+equivalent Linux Chrome profile into the container if you need Docker deployment.
+
+## CI
+
+GitHub Actions runs on pushes and pull requests. The workflow installs Python
+dependencies, checks `monitor.py` syntax, validates Docker Compose, and builds the
+Docker image.
 
 ## License
 

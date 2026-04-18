@@ -35,6 +35,9 @@ class Config:
     recent_post_count: int = 5
     state_file: Path = Path("state/last_seen.json")
     log_file: Path = Path("logs/monitor.log")
+    diagnostics_dir: Path = Path("diagnostics")
+    diagnostics_interval_seconds: int = 300
+    diagnostics_html_max_chars: int = 500_000
     enable_beep: bool = True
     chrome_binary: Optional[str] = None
     chrome_headless: bool = False
@@ -77,6 +80,9 @@ def load_config() -> Config:
         recent_post_count=max(1, int(os.getenv("RECENT_POST_COUNT", "5"))),
         state_file=Path(os.getenv("STATE_FILE", "state/last_seen.json")),
         log_file=Path(os.getenv("LOG_FILE", "logs/monitor.log")),
+        diagnostics_dir=Path(os.getenv("DIAGNOSTICS_DIR", "diagnostics")),
+        diagnostics_interval_seconds=max(0, int(os.getenv("DIAGNOSTICS_INTERVAL_SECONDS", "300"))),
+        diagnostics_html_max_chars=max(0, int(os.getenv("DIAGNOSTICS_HTML_MAX_CHARS", "500000"))),
         enable_beep=env_bool("ENABLE_BEEP", True),
         chrome_binary=(os.getenv("CHROME_BINARY") or "").strip() or None,
         chrome_headless=env_bool("CHROME_HEADLESS", False),
@@ -193,6 +199,63 @@ def save_seen_ids(state_file: Path, seen_ids: list[str]) -> None:
         "updated_at": datetime.utcnow().isoformat() + "Z",
     }
     state_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _diagnostic_name(reason: str) -> str:
+    sanitized = "".join(ch if ch.isalnum() else "-" for ch in reason.lower()).strip("-")
+    sanitized = "-".join(part for part in sanitized.split("-") if part)
+    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+    return f"{timestamp}-{sanitized or 'browser-error'}"
+
+
+def write_browser_diagnostics(driver: webdriver.Chrome, config: Config, reason: str) -> None:
+    config.diagnostics_dir.mkdir(parents=True, exist_ok=True)
+    base = config.diagnostics_dir / _diagnostic_name(reason)
+
+    metadata = {
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "reason": reason,
+        "target_username": config.target_username,
+        "target_url": config.target_url,
+        "current_url": "",
+        "title": "",
+        "page_source_length": 0,
+        "html_truncated": False,
+        "files": {},
+    }
+
+    try:
+        metadata["current_url"] = driver.current_url
+    except Exception as exc:
+        metadata["current_url_error"] = str(exc)
+
+    try:
+        metadata["title"] = driver.title
+    except Exception as exc:
+        metadata["title_error"] = str(exc)
+
+    try:
+        html = driver.page_source or ""
+        metadata["page_source_length"] = len(html)
+        if config.diagnostics_html_max_chars and len(html) > config.diagnostics_html_max_chars:
+            html = html[: config.diagnostics_html_max_chars]
+            metadata["html_truncated"] = True
+        html_path = base.with_suffix(".html")
+        html_path.write_text(html, encoding="utf-8", errors="ignore")
+        metadata["files"]["html"] = str(html_path)
+    except Exception as exc:
+        metadata["html_error"] = str(exc)
+
+    try:
+        screenshot_path = base.with_suffix(".png")
+        if driver.save_screenshot(str(screenshot_path)):
+            metadata["files"]["screenshot"] = str(screenshot_path)
+    except Exception as exc:
+        metadata["screenshot_error"] = str(exc)
+
+    metadata_path = base.with_suffix(".json")
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    logging.warning("Saved browser diagnostics to %s", metadata_path)
 
 
 def extract_recent_posts(driver: webdriver.Chrome, timeout_seconds: int, target_username: str, max_count: int) -> list[dict]:
@@ -350,6 +413,7 @@ def maybe_wait_for_login(config: Config, seen_ids: list[str]) -> None:
 def monitor_loop(config: Config) -> None:
     driver: Optional[webdriver.Chrome] = None
     seen_ids = load_seen_ids(config.state_file, config.recent_post_count)
+    last_diagnostics_at = 0.0
 
     while True:
         try:
@@ -421,6 +485,20 @@ def monitor_loop(config: Config) -> None:
 
         except (TimeoutException, NoSuchElementException, WebDriverException) as exc:
             logging.warning("Recoverable browser error: %s", exc)
+            now = time.monotonic()
+            should_write_diagnostics = (
+                driver is not None
+                and (
+                    config.diagnostics_interval_seconds == 0
+                    or now - last_diagnostics_at >= config.diagnostics_interval_seconds
+                )
+            )
+            if should_write_diagnostics:
+                try:
+                    write_browser_diagnostics(driver, config, exc.__class__.__name__)
+                    last_diagnostics_at = now
+                except Exception as diagnostics_exc:
+                    logging.warning("Failed to save browser diagnostics: %s", diagnostics_exc)
             if driver is not None:
                 try:
                     driver.quit()

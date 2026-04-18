@@ -32,9 +32,13 @@ services:
       ENABLE_BEEP: "false"
       STATE_FILE: /app/state/last_seen.json
       LOG_FILE: /app/logs/monitor.log
+      DIAGNOSTICS_DIR: /app/diagnostics
+      DIAGNOSTICS_INTERVAL_SECONDS: ${DIAGNOSTICS_INTERVAL_SECONDS:-300}
+      DIAGNOSTICS_HTML_MAX_CHARS: ${DIAGNOSTICS_HTML_MAX_CHARS:-500000}
     volumes:
       - ./state:/app/state
       - ./logs:/app/logs
+      - ./diagnostics:/app/diagnostics
     extra_hosts:
       - host.docker.internal:host-gateway
     shm_size: "1gb"
