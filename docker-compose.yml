@@ -30,7 +30,7 @@ services:
       CHROME_NO_SANDBOX: "true"
       CHROME_DISABLE_DEV_SHM_USAGE: "true"
       CHROME_PROXY_SERVER: ${HOST_PROXY_URL-http://host.docker.internal:7890}
-      CHROME_USER_DATA_DIR: ""
+      CHROME_USER_DATA_DIR: ${DOCKER_CHROME_USER_DATA_DIR:-/app/docker-chrome-profile}
       CHROME_PROFILE_DIRECTORY: ""
       ENABLE_BEEP: "false"
       STATE_FILE: /app/state/last_seen.json
@@ -42,7 +42,59 @@ services:
       - ./state:/app/state
       - ./logs:/app/logs
       - ./diagnostics:/app/diagnostics
+      - ./docker-chrome-profile:/app/docker-chrome-profile
     extra_hosts:
       - host.docker.internal:host-gateway
     shm_size: "1gb"
     restart: unless-stopped
+
+  cookie-import:
+    image: ${DOCKER_IMAGE:-ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier:latest}
+    build:
+      context: .
+      args:
+        HTTP_PROXY: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+        HTTPS_PROXY: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+        ALL_PROXY: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+        http_proxy: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+        https_proxy: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+        all_proxy: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      extra_hosts:
+        - host.docker.internal:host-gateway
+    profiles:
+      - tools
+    command: ["python", "scripts/import_x_cookies.py"]
+    env_file:
+      - .env
+    environment:
+      HTTP_PROXY: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      HTTPS_PROXY: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      ALL_PROXY: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      http_proxy: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      https_proxy: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      all_proxy: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      NO_PROXY: localhost,127.0.0.1,::1
+      no_proxy: localhost,127.0.0.1,::1
+      CHROME_BINARY: /usr/bin/chromium
+      CHROME_HEADLESS: "true"
+      CHROME_NO_SANDBOX: "true"
+      CHROME_DISABLE_DEV_SHM_USAGE: "true"
+      CHROME_PROXY_SERVER: ${HOST_PROXY_URL-http://host.docker.internal:7890}
+      CHROME_USER_DATA_DIR: ${DOCKER_CHROME_USER_DATA_DIR:-/app/docker-chrome-profile}
+      CHROME_PROFILE_DIRECTORY: ""
+      ENABLE_BEEP: "false"
+      STATE_FILE: /app/state/cookie-import-last_seen.json
+      LOG_FILE: /app/logs/cookie-import.log
+      DIAGNOSTICS_DIR: /app/diagnostics
+      X_COOKIE_FILE: ${X_COOKIE_FILE:-/app/secrets/x-cookies.json}
+    volumes:
+      - ./state:/app/state
+      - ./logs:/app/logs
+      - ./diagnostics:/app/diagnostics
+      - ./docker-chrome-profile:/app/docker-chrome-profile
+      - ./secrets:/app/secrets:ro
+      - ./scripts:/app/scripts:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    shm_size: "1gb"
+    restart: "no"

@@ -19,6 +19,8 @@ to monitor any other X/Twitter account.
 - Rebuilds the Chrome driver after recoverable browser failures.
 - Uses a temporary writable Chrome profile by default.
 - Can reuse an existing Chrome profile when X login state is required.
+- Can import X login cookies into a persistent Docker Chromium profile without
+  using noVNC.
 - Supports optional Feishu and DingTalk webhook notifications.
 
 ## Requirements
@@ -76,7 +78,8 @@ webhook secrets.
 - [ ] Start the monitor, then check `logs/monitor.log` for local runs or
   `logs/docker-monitor.log` for Docker runs.
 - [ ] If X shows a login wall, verify the monitor locally with a logged-in
-  Chrome profile before relying on Docker headless mode.
+  Chrome profile before relying on Docker headless mode, or import X cookies
+  into the Docker Chromium profile.
 
 ## Monitor Another Account
 
@@ -146,12 +149,28 @@ docker compose down
 ```
 
 The compose setup runs Chromium in headless mode and persists runtime files to
-local `state/`, `logs/`, and `diagnostics/` folders. Docker writes its log file
-to `logs/docker-monitor.log`, while local Python runs use `logs/monitor.log` by
-default. The `.env` file is passed at runtime and is not copied into the Docker
-image. Local host Chrome profile settings are cleared by the default compose file
-because Windows or macOS Chrome profile paths do not work inside the Linux
-container.
+local `state/`, `logs/`, and `diagnostics/` folders. It also mounts
+`docker-chrome-profile/` as a persistent Linux Chromium profile for Docker.
+Docker writes its log file to `logs/docker-monitor.log`, while local Python runs
+use `logs/monitor.log` by default. The `.env` file is passed at runtime and is
+not copied into the Docker image. Local host Chrome profile settings are not used
+inside the Linux container because Windows or macOS Chrome profile paths do not
+work there.
+
+### Import X Login Cookies Without noVNC
+
+If Docker headless mode reaches a login wall, export X cookies from a logged-in
+browser session to `secrets/x-cookies.json`, then import them into the persistent
+Docker Chromium profile:
+
+```bash
+docker compose --profile tools run --rm cookie-import
+```
+
+The helper reads `secrets/x-cookies.json`, writes the cookies into
+`docker-chrome-profile/`, and opens the target X page once to persist the login
+state. Both `secrets/` and `docker-chrome-profile/` are local-only and ignored by
+Git.
 
 By default, Docker build and runtime traffic use the host machine proxy at:
 
@@ -173,21 +192,21 @@ ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier
 
 Stable releases publish these tags:
 
-- the exact release tag, such as `v0.1.2`
-- the semantic version without `v`, such as `0.1.2`
+- the exact release tag, such as `v0.1.3`
+- the semantic version without `v`, such as `0.1.3`
 - the minor version, such as `0.1`
 - `latest`
 
 Pull a specific release:
 
 ```bash
-docker pull ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier:v0.1.2
+docker pull ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier:v0.1.3
 ```
 
 For reproducible deployments, pin `DOCKER_IMAGE` in `.env` to a release tag:
 
 ```dotenv
-DOCKER_IMAGE=ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier:v0.1.2
+DOCKER_IMAGE=ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier:v0.1.3
 ```
 
 ## Configuration
@@ -198,6 +217,8 @@ All configuration is read from `.env`.
 | --- | --- | --- |
 | `TARGET_USERNAME` | required | X username to monitor, with or without `@`. |
 | `DOCKER_IMAGE` | `ghcr.io/hx-sxcdfz/probiusofficial-x-reply-notifier:latest` | Docker image used by Docker Compose. Pin this to a release tag for reproducible deployments. |
+| `DOCKER_CHROME_USER_DATA_DIR` | `/app/docker-chrome-profile` | Persistent Linux Chromium profile path used by Docker Compose. |
+| `X_COOKIE_FILE` | `/app/secrets/x-cookies.json` | Cookie JSON path used by the Docker cookie-import helper. |
 | `CHECK_INTERVAL_SECONDS` | `60` | Base polling interval. |
 | `CHECK_JITTER_SECONDS` | `10` | Random jitter added to the polling interval. |
 | `PAGE_LOAD_TIMEOUT_SECONDS` | `45` | Selenium page load timeout. |
@@ -228,8 +249,8 @@ profile where you are already logged in.
 
 Docker headless mode is best for accounts/pages that do not require an
 interactive login. If X requires login, use a logged-in Chrome profile locally or
-edit `docker-compose.yml` to mount a Linux Chrome profile into the container and
-point `CHROME_USER_DATA_DIR` at that mounted path.
+import X cookies into the Docker Chromium profile with the `cookie-import`
+service.
 
 Use this project responsibly and make sure your usage complies with X's terms and
 applicable laws.
@@ -252,8 +273,8 @@ Common causes are:
 
 Docker headless mode is convenient for deployment, but it is not a guaranteed
 replacement for a logged-in desktop Chrome session. If X requires login, first
-verify the monitor locally with a logged-in Chrome profile, then mount an
-equivalent Linux Chrome profile into the container if you need Docker deployment.
+verify the monitor locally with a logged-in Chrome profile, then import cookies
+into the persistent Docker Chromium profile if you need Docker deployment.
 
 ## CI
 

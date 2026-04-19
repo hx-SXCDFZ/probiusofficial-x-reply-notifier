@@ -179,7 +179,7 @@ def load_seen_ids(state_file: Path, keep_count: int) -> list[str]:
         return []
 
     try:
-        data = json.loads(state_file.read_text(encoding="utf-8"))
+        data = json.loads(state_file.read_text(encoding="utf-8-sig"))
     except (json.JSONDecodeError, OSError) as exc:
         logging.warning("Failed to load state file: %s", exc)
         return []
@@ -203,6 +203,16 @@ def save_seen_ids(state_file: Path, seen_ids: list[str]) -> None:
         "updated_at": utc_now_iso(),
     }
     state_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def merge_seen_ids(current_ids: list[str], previous_ids: list[str], keep_count: int) -> list[str]:
+    merged: list[str] = []
+    for post_id in current_ids + previous_ids:
+        if post_id and post_id not in merged:
+            merged.append(post_id)
+        if len(merged) >= keep_count:
+            break
+    return merged
 
 
 def _diagnostic_name(reason: str) -> str:
@@ -456,11 +466,11 @@ def monitor_loop(config: Config) -> None:
                         notify_webhooks(config, post)
                         logging.info("Detected new id %s", post["id"])
 
-                    seen_ids = current_ids
+                    seen_ids = merge_seen_ids(current_ids, seen_ids, config.recent_post_count)
                     save_seen_ids(config.state_file, seen_ids)
                     logging.info("Updated seen_ids to: %s", ", ".join(seen_ids))
                 else:
-                    seen_ids = current_ids
+                    seen_ids = merge_seen_ids(current_ids, seen_ids, config.recent_post_count)
                     save_seen_ids(config.state_file, seen_ids)
                     logging.info(
                         "[monitoring] %s | status=ok | recent_ids=%s",

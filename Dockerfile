@@ -27,6 +27,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY monitor.py README.md PRD.md LICENSE .env.example ./
+COPY scripts ./scripts
 
 RUN mkdir -p /app/state /app/logs /app/diagnostics
 

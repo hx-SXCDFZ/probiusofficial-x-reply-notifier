@@ -25,6 +25,9 @@ diagnostics/
 
 # Browser and driver caches
 chrome_profile/
+docker-chrome-profile/
+secrets/
+x-cookies*.json
 .wdm/
 .wdm_local/
 
